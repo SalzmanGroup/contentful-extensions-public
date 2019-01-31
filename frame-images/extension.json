@@ -1,0 +1,30 @@
+{
+  "name": "Frame Images",
+  "id": "contentful-ui-frame-images",
+  "fieldTypes": ["Object"],
+  "srcdoc": "./index.html",
+  "parameters": {
+    "instance": [
+      {
+        "id": "bucketImageURL",
+        "name": "Base Amazon Bucket Image URL",
+        "type": "Symbol"
+      },
+      {
+        "id": "bucketName",
+        "name": "Full Amazon S3 Bucket Name",
+        "type": "Symbol"
+      },
+      {
+        "id": "bucketPrefix",
+        "name": "Amazon S3 Bucket Prefix",
+        "type": "Symbol"
+      },
+      {
+        "id": "bucketSet",
+        "name": "Amazon S3 Bucket Set",
+        "type": "Symbol"
+      }
+    ]
+  }
+}

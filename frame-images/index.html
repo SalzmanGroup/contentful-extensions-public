@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Frame Images - Contentful UI Extension</title>
+    <link rel="stylesheet" href="https://contentful.github.io/ui-extensions-sdk/cf-extension.css">
+    <style>
+        /* Frames */
+        #frame{
+            height: 400px;
+            width: 635px;
+            display: -webkit-box;
+            display: -moz-box;
+            display: -ms-flexbox;
+            display: -moz-flex;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-justify-content: space-around;
+            justify-content: space-around;
+            -webkit-flex-flow: row wrap;
+            flex-flow: row wrap;
+            -webkit-align-items: stretch;
+            align-items: stretch;
+        }
+        #frame-left, #frame-center, #frame-right {
+            height: 100%;
+        }
+        #frame-left {
+            text-align: right;
+        }
+        #frame-center {
+            text-align: center;
+            flex: 2;
+        }
+        #frame-right {
+            text-align: left;
+        }
+        .frame-responsive-image{
+            max-width: 100%;
+            height: 100%;
+        }
+        /* Frame Selections */
+        .frame-selection-image{
+            width: 100px;
+            cursor: pointer;
+            border: 3px solid black;
+            margin-right: 5px;
+        }
+    </style>
+    <script src="https://unpkg.com/contentful-ui-extensions-sdk@3"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+
+<body>
+
+    <button style="font-size: 1.5em;margin-bottom: 1em;">Get Images</button>
+    
+    <div id="frame-selections">
+    </div>
+    
+    <div id="frame" class="flex-container">
+        <div id="frame-left" class="flex-item">
+            <img id="frame-left-image" class="frame-responsive-image" src="">
+        </div>
+        <div id="frame-center" class="flex-item">
+            <img id="frame-center-image" class="frame-responsive-image" src="">
+        </div>
+        <div id="frame-right" class="flex-item">
+            <img id="frame-right-image" class="frame-responsive-image" src="">
+        </div>
+    </div>
+
+
+    <script>
+      /** INIT CONTENTFUL EXTENSION
+       ***************************/
+      // initialize ui extension
+      window.contentfulExtension.init( extension => {
+        // Size iframe
+        extension.window.startAutoResizer();
+    
+        /** CONSTANTS
+         *************/
+        const BUCKET_IMAGE_URL = extension.parameters.instance.bucketImageURL;
+        const BUCKET_NAME = extension.parameters.instance.bucketName;
+        const BUCKET_PREFIX = extension.parameters.instance.bucketPrefix;
+        const BUCKET_SET = extension.parameters.instance.bucketSet;
+        const AMAZON_S3_URL = BUCKET_NAME+"?list-type=2&prefix="+BUCKET_PREFIX+BUCKET_SET;
+    
+    
+        /** FRAME SELECTION IMAGE
+         ************************/
+        /* Event for clicking a frame selection image */
+        $(document).on("click",".frame-selection-image",function() {
+          //determine frame
+          //if l/c/r add to approp frame frame
+          //else....
+        });
+        
+        /** AMAZON S3 HANDLING
+         *********************/
+        /* Trigger S3 GET request */
+        $('button').on('click', function() {
+          getFilesFromAmazonBucket()
+        });
+        
+        /* Get XML from S3*/
+        function getFilesFromAmazonBucket(){
+          let xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+            if (this.readyState === 4 && this.status === 200) {
+              generateFrameImages(xhttp.responseText);
+            }
+          };
+          xhttp.open("GET", AMAZON_S3_URL, true);
+          xhttp.setRequestHeader('Access-Control-Allow-Origin','*');
+          xhttp.send();
+        }
+    
+        /* Get all frame images associated with the SKU */
+        function generateFrameImages(xml) {
+          let imageArray = [];
+          //get sku
+          let sku = getShopifyProductSku();
+          //loop thru keys
+          $(xml).find('Key').each(function () {
+            let key = $(this).text();
+            //check if key contains sku
+            if(key.includes(sku)){
+              //get frame from key name
+              let frame = getFrameFromImageKey(key);
+              //create and append img tag
+              $('<img />').attr({
+                'class': 'frame-selection-image',
+                'src':  BUCKET_IMAGE_URL + key,
+                'alt': key,
+                'data-frame':frame
+              }).appendTo('#frame-selections');
+            }
+          });
+        }
+        
+        /* Look for left/right/center substrings in the S3 key */
+        function getFrameFromImageKey(key){
+          if(key.includes("Left")){
+            return "left";
+          }
+          else if(key.includes("Center")){
+            return "center";
+          }
+          else if(key.includes("Right")){
+            return "right";
+          }else{
+            return "";
+          }
+        }
+        
+        
+        /** SET DATA
+         ************/
+        /* Set the value of the extension field */
+        function setFrameFieldValue(fieldValue){
+          extension.field.setValue(fieldValue);
+        }
+              
+        /** GET DATA
+         ************/
+        /* Get Production Shopify Product */
+        function getShopifyProduct(){
+          return extension.entry.fields.shopifyProduct._fieldLocales["en-US"]._value;
+        }
+        function getShopifyProductSku(){
+          let sku = extension.entry.fields.shopifyProduct._fieldLocales["en-US"]._value.variants.edges[0].node.sku;
+          if(sku.includes('-WLL')){
+            sku = sku.replace('-WLL','');
+          }
+          return sku;
+        }
+    
+        /* Get Stage Shopify Product */
+        function getShopifyProductStage(){
+          return extension.entry.fields.shopifyProductStage._fieldLocales["en-US"]._value;
+        }
+        function getShopifyProductStageSku(){
+          let sku = extension.entry.fields.shopifyProductStage._fieldLocales["en-US"]._value.variants.edges[0].node.sku;
+          if(sku.includes('-WLL')){
+            sku = sku.replace('-WLL','');
+          }
+          return sku;
+        }
+          
+      });//end Contentful init()
+        
+    </script>
+</body>
+</html>
