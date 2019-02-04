@@ -4,6 +4,8 @@
     <meta charset="UTF-8"/>
     <title>Frame Images - Contentful UI Extension</title>
     <link rel="stylesheet" href="https://contentful.github.io/ui-extensions-sdk/cf-extension.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <style>
         /* Frames */
         #frame{
@@ -41,114 +43,376 @@
         }
         /* Frame Selections */
         .frame-selection-image{
-            width: 100px;
-            cursor: pointer;
-            border: 3px solid black;
-            margin-right: 5px;
+            width: 200px;
+            border: 2px solid #0078e7;
+            margin: 10px;
+            cursor:pointer;
+        }
+        /* Buttons */
+        .fetch-btn-grid-container {
+            margin-top: 1em;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr;
+            grid-template-areas: "left-btn center-btn right-btn";
+            margin-bottom: 1em;
+        }
+        .left-btn { grid-area: left-btn; }
+        .center-btn { grid-area: center-btn; }
+        .right-btn { grid-area: right-btn; }
+        .button-error {
+            background: rgb(202, 60, 60);
+            color: white;
+            border-radius: 4px;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+        }
+        /* Button Messages */
+        .image-fetch-msg{
+            margin-top: 10px;
+            font-weight: bold;
+            min-height: 18px;
+        }
+        .image-fetch-msg-fail{
+            color: #d9453f;
+        }
+        .image-fetch-msg-success{
+            color: #0baa75;
+        }
+        .frame-file-name{
+            padding: 10px; 
+        }        
+        /* UI Modal */
+        .ui-dialog{
+            width:90% !important;
+            /*left: 0 !important;
+            top: 85px !important; */
+        }
+        /* Files */
+        .files{
+            margin-top: 2em;
+        }
+        #files-title{
+            text-decoration: underline;
         }
     </style>
     <script src="https://unpkg.com/contentful-ui-extensions-sdk@3"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 </head>
 
 <body>
-
-    <button style="font-size: 1.5em;margin-bottom: 1em;">Get Images</button>
-    
-    <div id="frame-selections">
-    </div>
-    
+       
     <div id="frame" class="flex-container">
         <div id="frame-left" class="flex-item">
-            <img id="frame-left-image" class="frame-responsive-image" src="">
+            <img id="frame-left-image" class="frame-responsive-image" src="">            
         </div>
         <div id="frame-center" class="flex-item">
-            <img id="frame-center-image" class="frame-responsive-image" src="">
+            <img id="frame-center-image" class="frame-responsive-image" src="">            
         </div>
         <div id="frame-right" class="flex-item">
-            <img id="frame-right-image" class="frame-responsive-image" src="">
+            <img id="frame-right-image" class="frame-responsive-image" src="">            
         </div>
     </div>
 
+    <div class="fetch-btn-grid-container">
+        <div class="left-btn">
+            <button class="pure-button pure-button-primary image-fetch-btn" data-frame="left">Get Left</button>
+            <button class="button-error pure-button remove-image" data-frame="left">Clear Left</button>
+            <div id="left-image-msg" class="image-fetch-msg"></div>
+        </div>
+        <div class="center-btn">
+            <button class="pure-button pure-button-primary image-fetch-btn" data-frame="center">Get Center</button>
+            <button class="button-error pure-button remove-image" data-frame="center">Clear Center</button>
+            <div id="center-image-msg" class="image-fetch-msg"></div>
+        </div>
+        <div class="right-btn">
+            <button class="pure-button pure-button-primary image-fetch-btn" data-frame="right">Get Right</button>
+            <button class="button-error pure-button remove-image" data-frame="right">Clear Right</button>
+            <div id="right-image-msg" class="image-fetch-msg"></div>
+        </div>
+    </div>
+    
+    <div class="files">
+        <strong id="files-title">Files</strong>
+        <div><strong>L:</strong><a target="_blank" href="" class="frame-file-name" id="left-frame-file-name"></a></div>
+        <div><strong>C:</strong><a target="_blank" href="" class="frame-file-name" id="center-frame-file-name"></a></div>
+        <div><strong>R:</strong><a target="_blank" href="" class="frame-file-name" id="right-frame-file-name"></a></div>
+    </div>
 
     <script>
       /** INIT CONTENTFUL EXTENSION
        ***************************/
       // initialize ui extension
       window.contentfulExtension.init( extension => {
+        
         // Size iframe
-        extension.window.startAutoResizer();
+        extension.window.updateHeight(600);
     
-        /** CONSTANTS
+        /** GLOBALS
          *************/
         const BUCKET_IMAGE_URL = extension.parameters.instance.bucketImageURL;
         const BUCKET_NAME = extension.parameters.instance.bucketName;
         const BUCKET_PREFIX = extension.parameters.instance.bucketPrefix;
         const BUCKET_SET = extension.parameters.instance.bucketSet;
         const AMAZON_S3_URL = BUCKET_NAME+"?list-type=2&prefix="+BUCKET_PREFIX+BUCKET_SET;
-    
-    
-        /** FRAME SELECTION IMAGE
-         ************************/
-        /* Event for clicking a frame selection image */
-        $(document).on("click",".frame-selection-image",function() {
-          //determine frame
-          //if l/c/r add to approp frame frame
-          //else....
-        });
+        var emptyLeft = ""; // empty left image
+        var emptyCenter = ""; // empty center image
+        var emptyRight = ""; // empty right image        
+        var bucketXml = null; // Amazon S3 xml
+        var frameFieldValue = {}; // JSON field value
+
         
-        /** AMAZON S3 HANDLING
-         *********************/
-        /* Trigger S3 GET request */
-        $('button').on('click', function() {
-          getFilesFromAmazonBucket()
-        });
-        
-        /* Get XML from S3*/
-        function getFilesFromAmazonBucket(){
+        /** INITIAL EXTENSION LOAD
+         *************************/
+        // set global json var to field value if it exists
+        if(extension.field.getValue() !== undefined){
+          frameFieldValue = extension.field.getValue();
+          //show saved images
+          $("#frame-left-image").attr('src',frameFieldValue[BUCKET_SET].l);
+          $("#frame-center-image").attr('src',frameFieldValue[BUCKET_SET].c);
+          $("#frame-right-image").attr('src',frameFieldValue[BUCKET_SET].r);
+          //show file names
+          $("#left-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].l)).attr('href',frameFieldValue[BUCKET_SET].l);
+          $("#center-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].c)).attr('href',frameFieldValue[BUCKET_SET].c);
+          $("#right-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].r)).attr('href',frameFieldValue[BUCKET_SET].r);
+          //get xml from S3
           let xhttp = new XMLHttpRequest();
           xhttp.onreadystatechange = function() {
             if (this.readyState === 4 && this.status === 200) {
-              generateFrameImages(xhttp.responseText);
+              bucketXml = xhttp.responseText;
+              $(bucketXml).find('Key').each(function () {
+                let key = $(this).text();
+                //get empty files
+                if(key.includes('Empty')){
+                  let frame = getFrameFromImageKey(key);
+                  let srcUrl = BUCKET_IMAGE_URL + key;
+                  if(frame === "left"){
+                    emptyLeft = srcUrl;
+                  }else if(frame === "center"){
+                    emptyCenter = srcUrl;
+                  }else if(frame === "right"){
+                    emptyRight = srcUrl;
+                  }
+                }
+              });
+              //show/hide remove fetch buttons
+              if(frameFieldValue[BUCKET_SET].l === emptyLeft){
+                $(".left-btn").find('.remove-image').hide();
+              }else{
+                $(".left-btn").find('.image-fetch-btn').hide();
+              }
+              if(frameFieldValue[BUCKET_SET].c === emptyCenter){
+                $(".center-btn").find('.remove-image').hide();
+              }else{
+                $(".center-btn").find('.image-fetch-btn').hide();
+              }
+              if(frameFieldValue[BUCKET_SET].r === emptyRight){
+                $(".right-btn").find('.remove-image').hide();
+              }else{
+                $(".right-btn").find('.image-fetch-btn').hide();
+              }               
             }
           };
           xhttp.open("GET", AMAZON_S3_URL, true);
           xhttp.setRequestHeader('Access-Control-Allow-Origin','*');
           xhttp.send();
+        }else{
+          frameFieldValue[BUCKET_SET] = {"l":"","c":"","r":""};
+          // display empty frame images
+          (function() {
+            let xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+              if (this.readyState === 4 && this.status === 200) {
+                bucketXml = xhttp.responseText;
+                $(bucketXml).find('Key').each(function () {
+                  let key = $(this).text();
+                  if(key.includes('Empty')){
+                    let frame = getFrameFromImageKey(key);
+                    let srcUrl = BUCKET_IMAGE_URL + key;
+                    $("#frame-"+frame+"-image").attr('src', BUCKET_IMAGE_URL + key);
+                    if(frame === "left"){
+                      frameFieldValue[BUCKET_SET].l = srcUrl;
+                      emptyLeft = srcUrl;                      
+                    }else if(frame === "center"){
+                      frameFieldValue[BUCKET_SET].c = srcUrl;
+                      emptyCenter = srcUrl;
+                    }else if(frame === "right"){
+                      frameFieldValue[BUCKET_SET].r = srcUrl;
+                      emptyRight = srcUrl;
+                    }
+                  }
+                });
+                //show file names
+                $("#left-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].l)).attr('href',frameFieldValue[BUCKET_SET].l);
+                $("#center-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].c)).attr('href',frameFieldValue[BUCKET_SET].c);
+                $("#right-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].r)).attr('href',frameFieldValue[BUCKET_SET].r);
+                //show/hide remove fetch buttons
+                if(frameFieldValue[BUCKET_SET].l === emptyLeft){
+                  $(".left-btn").find('.remove-image').hide();
+                }else{
+                  $(".left-btn").find('.image-fetch-btn').hide();
+                }
+                if(frameFieldValue[BUCKET_SET].c === emptyCenter){
+                  $(".center-btn").find('.remove-image').hide();
+                }else{
+                  $(".center-btn").find('.image-fetch-btn').hide();
+                }
+                if(frameFieldValue[BUCKET_SET].r === emptyRight){
+                  $(".right-btn").find('.remove-image').hide();
+                }else{
+                  $(".right-btn").find('.image-fetch-btn').hide();
+                }
+                //set init field value
+                setFrameFieldValue(frameFieldValue);
+              }
+            };
+            xhttp.open("GET", AMAZON_S3_URL, true);
+            xhttp.setRequestHeader('Access-Control-Allow-Origin','*');
+            xhttp.send();
+          })();
         }
-    
+        
+
+        /** EVENT HANDLERS
+         ************************/
+        /* Event for removing frame image */
+        $('.remove-image').on('click', function() {
+          //get frame
+          let frame = $(this).attr("data-frame");
+          //set empty image accordingly
+          if(frame === "left"){
+            $("#frame-"+frame+"-image").attr('src', emptyLeft);
+            frameFieldValue[BUCKET_SET].l = emptyLeft;
+            //change file name  
+            $("#left-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].l)).attr('href',frameFieldValue[BUCKET_SET].l);
+          }else if(frame === "center"){
+            $("#frame-"+frame+"-image").attr('src', emptyCenter);
+            frameFieldValue[BUCKET_SET].c = emptyCenter;
+            //change file name  
+            $("#center-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].c)).attr('href',frameFieldValue[BUCKET_SET].c);
+          }else if(frame === "right"){
+            $("#frame-"+frame+"-image").attr('src', emptyRight);
+            frameFieldValue[BUCKET_SET].r = emptyRight;
+            //change file name            
+            $("#right-frame-file-name").text(getFileNameFromURL(frameFieldValue[BUCKET_SET].r)).attr('href',frameFieldValue[BUCKET_SET].r);
+          }
+          //clear text
+          $(this).parent().find('.image-fetch-msg').text('');
+          //display fetch btn
+          $(this).parent().find('.image-fetch-btn').show();
+          $(this).hide();
+          //save field
+          setFrameFieldValue(frameFieldValue);
+        });
+
+        /* Trigger S3 GET request */
+        $('.image-fetch-btn').on('click', function() {
+          //get frame
+          let frame = $(this).attr("data-frame");
+          //get image array
+          let imageSelections = generateFrameImage(frame);     
+          
+          // no image found!
+          if(imageSelections.length === 0){
+            //show error msg
+            $(this).parent().find('.image-fetch-msg').text('No Image for '+getShopifyProductSku()).addClass('image-fetch-msg-fail');
+            //display remove btn
+            $(this).parent().find('.remove-image').show();
+            $(this).hide();
+          }
+          // one image!
+          else if(imageSelections.length === 1){
+            $("#frame-"+frame+"-image").attr('src', imageSelections[0]);
+            if(frame === "left"){
+              frameFieldValue[BUCKET_SET].l = imageSelections[0];
+            }else if(frame === "center"){
+              frameFieldValue[BUCKET_SET].c = imageSelections[0];
+            }else if(frame === "right"){
+              frameFieldValue[BUCKET_SET].r = imageSelections[0];
+            }
+            //show success msg
+            $(this).parent().find('.image-fetch-msg').text('Image Set').addClass('image-fetch-msg-success');
+            //set frame image name
+            $("#"+frame+"-frame-file-name").text(getFileNameFromURL(imageSelections[0])).attr('href',imageSelections[0]);
+            //display remove btn
+            $(this).parent().find('.remove-image').show();
+            $(this).hide();
+            //save!
+            setFrameFieldValue(frameFieldValue);
+          }
+          // show modal selections
+          else if(imageSelections.length > 1){
+            let imgHtml = "";
+            imageSelections.forEach(function(src) {
+              imgHtml += "<img data-frame='"+frame+"' class='frame-selection-image' src='"+src+"'>";
+            });
+            $('<div title="Choose an image"/>').html(imgHtml).dialog();
+          }
+        });
+        
+        /* Select image from modal */
+        $(document).on("click",".frame-selection-image",function() {
+          //get data
+          let frame = $(this).attr("data-frame");
+          let image = $(this).attr("src");
+          //set frame image
+          $("#frame-"+frame+"-image").attr('src', image);
+          //set json value
+          if(frame === "left"){
+            frameFieldValue[BUCKET_SET].l = image;
+          }else if(frame === "center"){
+            frameFieldValue[BUCKET_SET].c = image;
+          }else if(frame === "right"){
+            frameFieldValue[BUCKET_SET].r = image;
+          }
+          //close modal
+          $(this).closest('.ui-dialog-content').dialog('close');
+          //set frame image name
+          $("#"+frame+"-frame-file-name").text(getFileNameFromURL(image)).attr('href',image);
+          //show success msg
+          $("#"+frame+"-image-msg").text('Image Set').addClass('image-fetch-msg-success');
+          //display remove btn
+          $("."+frame+"-btn").find('.image-fetch-btn').hide();
+          $("."+frame+"-btn").find('.remove-image').show();
+          //save field value
+          setFrameFieldValue(frameFieldValue);
+        });
+        
+        
+        /** S3 XML HANDLING
+         *******************/    
         /* Get all frame images associated with the SKU */
-        function generateFrameImages(xml) {
-          let imageArray = [];
+        function generateFrameImage(frame) {
           //get sku
           let sku = getShopifyProductSku();
           //loop thru keys
-          $(xml).find('Key').each(function () {
-            let key = $(this).text();
-            //check if key contains sku
-            if(key.includes(sku)){
-              //get frame from key name
-              let frame = getFrameFromImageKey(key);
-              //create and append img tag
-              $('<img />').attr({
-                'class': 'frame-selection-image',
-                'src':  BUCKET_IMAGE_URL + key,
-                'alt': key,
-                'data-frame':frame
-              }).appendTo('#frame-selections');
-            }
-          });
-        }
+          if(sku !== ""){
+            let imageSelections = [];
+            $(bucketXml).find('Key').each(function () {
+              let key = $(this).text();
+              //check if key contains sku
+              if(key.includes(sku)){
+                let keyFrame = getFrameFromImageKey(key);
+                if(keyFrame === frame){
+                  imageSelections.push(BUCKET_IMAGE_URL + key);
+                }                
+              }
+            });
+            return imageSelections;
+          }else{
+            return [];
+          }
+        }        
         
         /* Look for left/right/center substrings in the S3 key */
         function getFrameFromImageKey(key){
-          if(key.includes("Left")){
+          if(key.includes("/l/")){
             return "left";
           }
-          else if(key.includes("Center")){
+          else if(key.includes("/c/")){
             return "center";
           }
-          else if(key.includes("Right")){
+          else if(key.includes("/r/")){
             return "right";
           }else{
             return "";
@@ -169,24 +433,25 @@
         function getShopifyProduct(){
           return extension.entry.fields.shopifyProduct._fieldLocales["en-US"]._value;
         }
+
+        /* Get Production Shopify Product Sku */
         function getShopifyProductSku(){
-          let sku = extension.entry.fields.shopifyProduct._fieldLocales["en-US"]._value.variants.edges[0].node.sku;
-          if(sku.includes('-WLL')){
-            sku = sku.replace('-WLL','');
-          }
-          return sku;
+          let sku = extension.entry.fields.productCode._fieldLocales["en-US"]._value;
+          if(sku !== undefined){
+            return sku;
+          }else{
+            return "";
+          }           
         }
     
         /* Get Stage Shopify Product */
         function getShopifyProductStage(){
           return extension.entry.fields.shopifyProductStage._fieldLocales["en-US"]._value;
         }
-        function getShopifyProductStageSku(){
-          let sku = extension.entry.fields.shopifyProductStage._fieldLocales["en-US"]._value.variants.edges[0].node.sku;
-          if(sku.includes('-WLL')){
-            sku = sku.replace('-WLL','');
-          }
-          return sku;
+
+        /* Get S3 file name */
+        function getFileNameFromURL(url){
+          return url.replace(/([^\/]*\/){7}/, '');
         }
           
       });//end Contentful init()
