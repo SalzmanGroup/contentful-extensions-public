@@ -389,7 +389,7 @@
             $(bucketXml).find('Key').each(function () {
               let key = $(this).text();
               //check if key contains sku
-              if(key.includes(sku)){
+              if(key.toUpperCase().includes(sku.toUpperCase())){
                 let keyFrame = getFrameFromImageKey(key);
                 if(keyFrame === frame){
                   imageSelections.push(BUCKET_IMAGE_URL + key);
