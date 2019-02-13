@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Shopify Collections for Promos</title>
+    <link rel="stylesheet" href="https://contentful.github.io/ui-extensions-sdk/cf-extension.css">
+    <script src="https://unpkg.com/contentful-ui-extensions-sdk@3"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <style>
+        .select2{
+            width: 100% !important;
+        }
+        li.select2-selection__choice{
+            background-color: #5897fb !important;
+            border-color:#5897fb !important;
+            color:#fff !important;
+        }
+        li.select2-selection__choice > span{
+            color:#fff !important;
+        }
+    </style>
+    <!-- https://select2.org -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+</head>
+<body>
+    
+    <!-- Select for Shopify Collections -->
+    <select id="collections-select" multiple="multiple">
+    </select>      
+
+    <script>    
+      window.contentfulExtension.init( extension => {
+        
+        //Get extension vars
+        const API_ENDPOINT = extension.parameters.instance.apiEndpoint;
+        const API_TOKEN = extension.parameters.instance.apiToken;
+        const DROPDOWN = '#collections-select';        
+        
+        //Get collections and initialize collection dropdown
+        getShopifyCollections().then(response => {
+          for(let collection of response.data.shop.collections.edges){
+            $(DROPDOWN).append($('<option>', {
+              value: collection.node.handle,
+              text: collection.node.title
+            }));
+          }
+          //init multiselect
+          $(DROPDOWN).select2();
+          
+          //show saved field values
+          if(extension.field.getValue() !== undefined){
+            let collections = extension.field.getValue().split(',');
+            $(DROPDOWN).val(collections);
+            $(DROPDOWN).trigger('change');           
+          }
+
+          //Set init size        
+          extension.window.updateHeight(25 + parseInt($('span.selection').height()));
+        });
+        
+        //Ajax request to retrieve Shopify collections excluding "bb__"
+        function getShopifyCollections() {
+          return $.ajax({
+            url: API_ENDPOINT,
+            method: 'POST',
+            cache: true,
+            headers: {
+              'X-Shopify-Storefront-Access-Token': API_TOKEN,
+              'Content-Type': 'application/graphql'
+            },
+            data: `{
+                    shop {
+                        name
+                            collections(first: 250, query: "-bb__*" ) {
+                            edges {
+                                node {
+                                    id
+                                    handle
+                                    title
+                                }
+                            }
+                        }
+                    }
+                }`
+          });
+        }
+        
+        //Save collections to field 
+        $(document).on("change",DROPDOWN,function(e) {
+          let collections = $(DROPDOWN).select2('data');
+          if(collections.length > 0){
+            //save collection handles to field
+            let collectionArray = [];
+            for(let collection of collections){
+              collectionArray.push(collection.id);
+            }
+            setExtensionFieldValue(collectionArray.toString());
+          }else{ 
+            //Save empty string to field
+            setExtensionFieldValue("");
+          }
+        });
+
+        //Set the value of the extension field
+        function setExtensionFieldValue(fieldValue){
+          extension.field.setValue(fieldValue);
+        }
+
+        //Adjust height of extension
+        $(document).on("select2:opening",DROPDOWN,function(e) {
+          extension.window.updateHeight(250 + parseInt($('ul.select2-selection__rendered').height()));
+        });        
+        $(document).on("select2:close",DROPDOWN,function(e) {          
+          extension.window.updateHeight();
+        });
+        
+      });
+    </script>
+</body>
+</html>

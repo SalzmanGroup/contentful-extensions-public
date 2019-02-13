@@ -1,0 +1,20 @@
+{
+  "name": "Shopify Collections",
+  "id": "shopify-collections",
+  "fieldTypes":["Symbol","Symbols","Text"],
+  "srcdoc": "./index.html",
+  "parameters": {
+    "instance": [
+      {
+        "id": "apiToken",
+        "name": "Shopify Read-only Storefront Access Token",
+        "type": "Symbol"
+      },
+      {
+        "id": "apiEndpoint",
+        "name": "Shopify GraphQL endpoint",
+        "type": "Symbol"
+      }
+    ]
+  }
+}
